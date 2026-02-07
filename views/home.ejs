@@ -1,0 +1,32 @@
+<%- include('header', { pageTitle: currentCategory ? currentCategory : 'Home', categories, currentCategory }) %>
+
+<% if (currentCategory) { %>
+  <div class="page-heading">
+    <h1><%= currentCategory %></h1>
+    <p class="subtitle"><%= posts.length %> post<%= posts.length !== 1 ? 's' : '' %> in this category</p>
+  </div>
+<% } %>
+
+<div class="post-list">
+  <% posts.forEach(post => { %>
+    <article class="post-card">
+      <div class="post-meta">
+        <time datetime="<%= post.date %>"><%= new Date(post.date + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></time>
+        <span class="post-categories">
+          <% post.categories.forEach(cat => { %>
+            <a href="/category/<%= cat %>" class="category-tag"><%= cat %></a>
+          <% }) %>
+        </span>
+      </div>
+      <h2><a href="/post/<%= post.slug %>"><%= post.title %></a></h2>
+      <p class="post-excerpt"><%= post.excerpt %></p>
+      <a href="/post/<%= post.slug %>" class="read-more">Read more</a>
+    </article>
+  <% }) %>
+</div>
+
+<% if (posts.length === 0) { %>
+  <p class="empty-state">No posts found.</p>
+<% } %>
+
+<%- include('footer') %>
