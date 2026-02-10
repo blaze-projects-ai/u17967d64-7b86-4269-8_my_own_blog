@@ -9,6 +9,11 @@ const PORT = process.env.PORT || 3000;
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+
+// In-memory todo store
+let todos = [];
+let nextId = 1;
 
 // Homepage - list all posts
 app.get('/', (req, res) => {
@@ -38,6 +43,55 @@ app.get('/post/:slug', (req, res) => {
   const contentHtml = marked(post.content);
   res.render('post', { post, contentHtml, categories });
 });
+
+// Todo page
+app.get('/todos', (req, res) => {
+  const categories = getAllCategories();
+  res.render('todos', { categories });
+});
+
+// Todo API
+app.get('/api/todos', (req, res) => {
+  res.json(todos);
+});
+
+app.post('/api/todos', (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Text is required' });
+  }
+  const todo = { id: nextId++, text: text.trim(), completed: false };
+  todos.push(todo);
+  res.status(201).json(todo);
+});
+
+app.patch('/api/todos/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const todo = todos.find(t => t.id === id);
+  if (!todo) {
+    return res.status(404).json({ error: 'Todo not found' });
+  }
+  if (typeof req.body.completed === 'boolean') {
+    todo.completed = req.body.completed;
+  }
+  res.json(todo);
+});
+
+app.delete('/api/todos/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = todos.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: 'Todo not found' });
+  }
+  todos.splice(index, 1);
+  res.status(204).end();
+});
+
+// Reset todos (for testing)
+app._resetTodos = function() {
+  todos = [];
+  nextId = 1;
+};
 
 // 404 handler
 app.use((req, res) => {

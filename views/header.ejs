@@ -15,6 +15,7 @@
         <% categories.forEach(cat => { %>
           <a href="/category/<%= cat %>"<%= typeof currentCategory !== 'undefined' && currentCategory === cat ? ' class="active"' : '' %>><%= cat %></a>
         <% }) %>
+        <a href="/todos"<%= typeof currentPage !== 'undefined' && currentPage === 'todos' ? ' class="active"' : '' %>>Todos</a>
       </nav>
     </div>
   </header>

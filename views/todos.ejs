@@ -1,0 +1,21 @@
+<%- include('header', { pageTitle: 'Todos', categories, currentCategory: null, currentPage: 'todos' }) %>
+
+<div class="page-heading">
+  <h1>Todo List</h1>
+  <p class="subtitle">Keep track of your tasks</p>
+</div>
+
+<div class="todo-app">
+  <form class="todo-form" id="todo-form">
+    <input type="text" id="todo-input" class="todo-input" placeholder="What needs to be done?" autocomplete="off">
+    <button type="submit" class="todo-submit">Add</button>
+  </form>
+
+  <ul class="todo-list" id="todo-list"></ul>
+
+  <p class="empty-state" id="todo-empty">No todos yet. Add one above!</p>
+</div>
+
+<script src="/todos.js"></script>
+
+<%- include('footer') %>

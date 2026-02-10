@@ -6,14 +6,26 @@ const app = require('./server');
 let server;
 const PORT = 0; // Let OS assign a port
 
-function request(path) {
+function request(path, options) {
   return new Promise((resolve, reject) => {
-    const url = `http://localhost:${server.address().port}${path}`;
-    http.get(url, (res) => {
+    const url = new URL(`http://localhost:${server.address().port}${path}`);
+    const opts = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method: (options && options.method) || 'GET',
+      headers: (options && options.headers) || {}
+    };
+    const req = http.request(opts, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => resolve({ status: res.statusCode, body }));
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    if (options && options.body) {
+      req.write(options.body);
+    }
+    req.end();
   });
 }
 
@@ -109,6 +121,108 @@ async function runTests() {
     const cssGridPos = res.body.indexOf('Understanding CSS Grid Layout');
     const nodePos = res.body.indexOf('Getting Started with Node.js');
     assert(cssGridPos < nodePos, 'CSS Grid (Feb 5) should appear before Node.js (Jan 15)');
+  });
+
+  // Todo tests
+  console.log('');
+
+  // Reset todos before todo tests
+  app._resetTodos();
+
+  await test('Todo page returns 200', async () => {
+    const res = await request('/todos');
+    assert.strictEqual(res.status, 200);
+  });
+
+  await test('Todo page contains form elements', async () => {
+    const res = await request('/todos');
+    assert(res.body.includes('todo-form'), 'Missing todo form');
+    assert(res.body.includes('todo-input'), 'Missing todo input');
+    assert(res.body.includes('todo-list'), 'Missing todo list');
+  });
+
+  await test('GET /api/todos returns empty array initially', async () => {
+    const res = await request('/api/todos');
+    assert.strictEqual(res.status, 200);
+    const todos = JSON.parse(res.body);
+    assert(Array.isArray(todos), 'Should return an array');
+    assert.strictEqual(todos.length, 0, 'Should be empty initially');
+  });
+
+  await test('POST /api/todos creates a todo', async () => {
+    const res = await request('/api/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'Buy groceries' })
+    });
+    assert.strictEqual(res.status, 201);
+    const todo = JSON.parse(res.body);
+    assert.strictEqual(todo.text, 'Buy groceries');
+    assert.strictEqual(todo.completed, false);
+    assert(todo.id, 'Should have an id');
+  });
+
+  await test('POST /api/todos rejects empty text', async () => {
+    const res = await request('/api/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: '' })
+    });
+    assert.strictEqual(res.status, 400);
+  });
+
+  await test('GET /api/todos returns created todos', async () => {
+    const res = await request('/api/todos');
+    const todos = JSON.parse(res.body);
+    assert.strictEqual(todos.length, 1);
+    assert.strictEqual(todos[0].text, 'Buy groceries');
+  });
+
+  await test('PATCH /api/todos/:id toggles completion', async () => {
+    const listRes = await request('/api/todos');
+    const todos = JSON.parse(listRes.body);
+    const id = todos[0].id;
+
+    const res = await request(`/api/todos/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: true })
+    });
+    assert.strictEqual(res.status, 200);
+    const updated = JSON.parse(res.body);
+    assert.strictEqual(updated.completed, true);
+  });
+
+  await test('PATCH /api/todos/:id returns 404 for nonexistent', async () => {
+    const res = await request('/api/todos/9999', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ completed: true })
+    });
+    assert.strictEqual(res.status, 404);
+  });
+
+  await test('DELETE /api/todos/:id removes a todo', async () => {
+    const listRes = await request('/api/todos');
+    const todos = JSON.parse(listRes.body);
+    const id = todos[0].id;
+
+    const res = await request(`/api/todos/${id}`, { method: 'DELETE' });
+    assert.strictEqual(res.status, 204);
+
+    const afterRes = await request('/api/todos');
+    const remaining = JSON.parse(afterRes.body);
+    assert.strictEqual(remaining.length, 0, 'Todo should be deleted');
+  });
+
+  await test('DELETE /api/todos/:id returns 404 for nonexistent', async () => {
+    const res = await request('/api/todos/9999', { method: 'DELETE' });
+    assert.strictEqual(res.status, 404);
+  });
+
+  await test('Homepage nav contains Todos link', async () => {
+    const res = await request('/');
+    assert(res.body.includes('href="/todos"'), 'Missing Todos link in nav');
   });
 
   console.log(`\nResults: ${passed} passed, ${failed} failed`);
